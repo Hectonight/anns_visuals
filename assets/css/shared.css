@@ -1,0 +1,29 @@
+.home-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 11px;
+  color: var(--text, var(--ink, #15211d));
+  background: var(--surface-2, rgba(255, 253, 248, 0.86));
+  border: 1px solid var(--line, #c9c4b8) !important;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.home-link:hover,
+.home-link:focus-visible {
+  border-color: var(--cyan, var(--accent, #2d765d)) !important;
+  outline: none;
+}
+
+@media (max-width: 740px) {
+  .header-links,
+  .header-actions {
+    flex-wrap: wrap;
+  }
+}

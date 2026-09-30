@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Explore HashPrune residual hashing and directional coverage in three dimensions.">
+  <title>HashPrune — Residualized Hashing Explorer</title>
+  <link rel="icon" href="../assets/icons/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/css/shared.css">
+  <link rel="stylesheet" href="../assets/css/hashprune-3d.css">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">PiPNN · algorithm 3</div>
+        <h1>HashPrune Geometry</h1>
+        <div class="subtitle">Orbit the residual space around a point p. Each random hyperplane contributes one sign bit; identical bit strings form directional buckets that keep only their nearest candidate.</div>
+      </div>
+      <div class="header-links"><a class="home-link" href="../index.html" aria-label="Back to the visualizer home page">⌂ Home</a><button class="theme-toggle" id="themeToggle" type="button">☀ Light</button><a href="https://arxiv.org/html/2602.21247v3#S3" target="_blank" rel="noreferrer">Paper §3 ↗</a></div>
+    </header>
+
+    <section class="card toolbar" aria-label="Animation controls">
+      <button class="btn" id="firstBtn">↤</button>
+      <button class="btn" id="prevBtn">← Back</button>
+      <button class="btn primary" id="playBtn">▶ Play</button>
+      <button class="btn" id="nextBtn">Next →</button>
+      <button class="btn" id="lastBtn">↦</button>
+      <span class="step-count" id="stepCount">Step 1 / 1</span>
+      <div class="progress"><div id="progressFill"></div></div>
+    </section>
+
+    <div class="layout">
+      <aside class="card controls">
+        <div class="card-head"><h2>Model controls</h2><span>⚙</span></div>
+        <div class="card-body">
+          <div class="group-title">Hash family</div>
+          <div class="field-grid">
+            <label for="bitsInput">Hyperplanes m</label><input id="bitsInput" type="number" min="1" max="8" value="4" />
+            <label for="countInput">Candidates</label><input id="countInput" type="number" min="4" max="48" value="24" />
+            <label for="capInput">Reservoir ℓ<sub>max</sub></label><input id="capInput" type="number" min="1" max="16" value="8" />
+            <label for="seedInput">Random seed</label><input id="seedInput" type="number" min="1" max="999999" value="858" />
+          </div>
+          <div class="apply-row"><button class="btn primary" id="applyBtn">Apply</button><button class="btn" id="regenBtn">New geometry</button></div>
+
+          <div class="group-title">View</div>
+          <div class="checks">
+            <label class="check"><input id="planesCheck" type="checkbox" checked /> Show hyperplanes</label>
+            <label class="check"><input id="vectorsCheck" type="checkbox" checked /> Show residual vectors</label>
+            <label class="check"><input id="labelsCheck" type="checkbox" checked /> Show candidate labels</label>
+            <label class="check"><input id="spinCheck" type="checkbox" /> Slowly rotate</label>
+          </div>
+          <div class="group-title">Plane opacity</div>
+          <input id="opacityInput" type="range" min="0" max="0.34" step="0.01" value="0.12" />
+
+          <div class="group-title">The hash</div>
+          <div class="formula"><b>h<sub>p</sub>(c)</b> = ⨁<sub>i=1…m</sub> 𝟙[ H<sub>i</sub> · (c − p) ≥ 0 ]</div>
+          <p class="hint">The planes all pass through p because hashing is applied to the residual c − p. Drag the model to orbit, use the wheel to zoom, and click a candidate to inspect it.</p>
+        </div>
+      </aside>
+
+      <section class="card stage">
+        <div class="viewport" id="viewport">
+          <canvas id="canvas" role="img" aria-label="Interactive three-dimensional view of HashPrune residual vectors and random hyperplanes"></canvas>
+          <div class="viewport-label" id="viewportLabel">Residual space around p</div>
+          <div class="orbit-help">drag to orbit · wheel to zoom · click a candidate</div>
+        </div>
+        <div class="narrative" aria-live="polite">
+          <div class="phase" id="phase">Residualize</div>
+          <h2 id="stepTitle">Center every direction on p</h2>
+          <p id="stepText"></p>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="statBits">0 / 4</b><span>bits revealed</span></div>
+          <div class="stat"><b id="statBuckets">1</b><span>visible buckets</span></div>
+          <div class="stat"><b id="statCollisions">0</b><span>hash collisions</span></div>
+          <div class="stat"><b id="statKept">0 / 8</b><span>reservoir used</span></div>
+        </div>
+      </section>
+
+      <aside class="right">
+        <section class="card">
+          <div class="card-head"><h2>Candidate inspector</h2><span id="candidateStatus">selected</span></div>
+          <div class="card-body candidate">
+            <div class="candidate-top"><div class="candidate-dot" id="candidateDot">c0</div><div><div class="candidate-name" id="candidateName">candidate c0</div><div class="candidate-distance" id="candidateDistance">‖c − p‖ = 0.00</div></div></div>
+            <div class="bits" id="bitStrip"></div>
+            <div class="decision" id="decision">Reveal all bits, then stream candidates into HashPrune.</div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h2>Reservoir M</h2><span id="reservoirCount">0 / 8</span></div>
+          <div class="card-body"><div class="reservoir" id="reservoir"></div></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h2>Directional buckets</h2><span>nearest wins</span></div>
+          <div class="card-body"><div class="buckets" id="buckets"></div></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h2>Step trail</h2><span>click to jump</span></div>
+          <div class="card-body trail" id="trail"></div>
+        </section>
+      </aside>
+    </div>
+  </main>
+  <script src="../assets/js/hashprune-3d.js"></script>
+</body>
+</html>

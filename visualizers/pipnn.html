@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Walk through the complete PiPNN index-construction pipeline.">
+  <title>PiPNN — Index Construction Explorer</title>
+  <link rel="icon" href="../assets/icons/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/css/shared.css">
+  <link rel="stylesheet" href="../assets/css/pipnn.css">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div><div class="eyebrow">PiPNN · algorithm 4</div><h1>PiPNN Index Construction</h1><div class="subtitle">Follow points from overlapping randomized ball-carving leaves to cache-friendly local k-NN edges, online HashPrune reservoirs, and the final RobustPrune graph.</div></div>
+      <div class="header-links"><a class="home-link" href="../index.html" aria-label="Back to the visualizer home page">⌂ Home</a><button class="theme-toggle" id="themeToggle" type="button">☾ Dark</button><a href="https://arxiv.org/pdf/2602.21247v3#page=5" target="_blank" rel="noreferrer">Paper §4 ↗</a></div>
+    </header>
+    <section class="card toolbar" aria-label="Animation controls">
+      <button class="btn" id="firstBtn" type="button">↤</button><button class="btn" id="prevBtn" type="button">← Back</button><button class="btn primary" id="playBtn" type="button">▶ Play</button><button class="btn" id="nextBtn" type="button">Next →</button><button class="btn" id="lastBtn" type="button">↦</button><span class="step-count" id="stepCount">Step 1 / 7</span><div class="progress"><div id="progressFill"></div></div>
+    </section>
+    <div class="layout">
+      <aside class="card controls">
+        <div class="card-head"><h2>Model controls</h2><span>⚙</span></div>
+        <div class="card-body">
+          <div class="group-title">Dataset</div><div class="field-grid"><label for="countInput">Points</label><input id="countInput" type="number" min="12" value="48"><label for="seedInput">Random seed</label><input id="seedInput" type="number" min="1" max="999999" value="858"></div>
+          <div class="group-title">Partition</div><div class="field-grid"><label for="leadersInput">Leaders</label><input id="leadersInput" type="number" min="2" max="8" value="4"><label for="fanoutInput">Fanout</label><input id="fanoutInput" type="number" min="1" max="3" value="2"></div>
+          <div class="group-title">Pick & prune</div><div class="field-grid"><label for="knnInput">Leaf k-NN</label><input id="knnInput" type="number" min="1" max="5" value="2"><label for="bitsInput">Hash bits m</label><input id="bitsInput" type="number" min="1" max="6" value="3"><label for="degreeInput">Degree cap</label><input id="degreeInput" type="number" min="2" max="20" value="8"><label for="alphaInput">Final α</label><input id="alphaInput" type="number" min="1" max="3" step="0.05" value="1.2"></div>
+          <div class="group-title">Final pass</div><label class="check"><input id="finalCheck" type="checkbox" checked> Run final RobustPrune</label>
+          <div class="apply-row"><button class="btn primary" id="applyBtn" type="button">Apply</button><button class="btn" id="regenBtn" type="button">New geometry</button></div>
+          <p class="hint">This uses one visible RBC level. Production PiPNN recursively partitions oversized leaves until they fit the configured C<sub>max</sub>.</p>
+        </div>
+      </aside>
+      <section class="card stage">
+        <div class="viewport" id="viewport"><canvas id="canvas" role="img" aria-label="PiPNN pipeline over a two-dimensional point set"></canvas><div class="canvas-help">click a point to inspect its path through the pipeline</div></div>
+        <div class="narrative" aria-live="polite"><div class="phase" id="phase">Input</div><h2 id="stepTitle">Start with the vector dataset</h2><p id="stepText"></p></div>
+        <div class="stats"><div class="stat"><b id="statLeaves">0</b><span>overlapping leaves</span></div><div class="stat"><b id="statCandidates">0</b><span>candidate edges</span></div><div class="stat"><b id="statEdges">0</b><span>retained edges</span></div><div class="stat"><b id="statDegree">0.0</b><span>average degree</span></div></div>
+      </section>
+      <aside class="right">
+        <section class="card"><div class="card-head"><h2>PiPNN pipeline</h2><span>Algorithm 4</span></div><div class="card-body"><div class="pipeline" id="pipeline"></div></div></section>
+        <section class="card"><div class="card-head"><h2>Selected point</h2><span id="focusStatus">x0</span></div><div class="card-body focus"><div class="focus-top"><div class="focus-dot" id="focusDot">x0</div><div><div class="focus-name" id="focusName">point x0</div><div class="focus-sub" id="focusSub">leaf memberships</div></div></div><div class="mini-list" id="focusList"></div></div></section>
+        <section class="card"><div class="card-head"><h2>Legend & detail</h2><span>stage links</span></div><div class="card-body"><div class="legend"><div class="legend-item"><span class="swatch"></span>point</div><div class="legend-item"><span class="swatch leader"></span>leader</div><div class="legend-item"><span class="swatch candidate"></span>candidate edge</div><div class="legend-item"><span class="swatch removed"></span>deleted now</div><div class="legend-item"><span class="swatch edge"></span>surviving edge</div></div><p class="hint"><a href="ball_carving.html">Ball carving</a> · <a href="hashprune_2d.html">HashPrune</a> · <a href="robustprune.html">RobustPrune</a></p></div></section>
+      </aside>
+    </div>
+  </main>
+  <script src="../assets/js/pipnn.js"></script>
+</body>
+</html>

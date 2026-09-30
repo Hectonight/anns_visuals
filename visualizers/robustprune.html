@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Explore the geometry and deletion decisions made by RobustPrune.">
+  <title>RobustPrune — Vamana Neighborhood Explorer</title>
+  <link rel="icon" href="../assets/icons/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/css/shared.css">
+  <link rel="stylesheet" href="../assets/css/robustprune.css">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">DiskANN · Vamana · algorithm 2</div>
+        <h1>RobustPrune Geometry</h1>
+        <div class="subtitle">Watch Vamana keep a nearby candidate, then remove farther candidates already “covered” by that neighbor. Increase α to demand stronger coverage; lower R to stop with a tighter degree bound.</div>
+      </div>
+      <div class="header-links"><a class="home-link" href="../index.html" aria-label="Back to the visualizer home page">⌂ Home</a>
+        <button class="theme-toggle" id="themeToggle" type="button">☾ Dark</button>
+        <a href="https://papers.nips.cc/paper_files/paper/2019/file/09853c7fb1d3f8ee67a61b6bf4a7f8e6-Paper.pdf#page=4" target="_blank" rel="noreferrer">DiskANN Alg. 2 ↗</a>
+        <a href="https://arxiv.org/pdf/2602.21247v3#page=3" target="_blank" rel="noreferrer">PiPNN restatement ↗</a>
+      </div>
+    </header>
+
+    <section class="card toolbar" aria-label="Animation controls">
+      <button class="btn" id="firstBtn" type="button" aria-label="First step">↤</button>
+      <button class="btn" id="prevBtn" type="button">← Back</button>
+      <button class="btn primary" id="playBtn" type="button">▶ Play</button>
+      <button class="btn" id="nextBtn" type="button">Next →</button>
+      <button class="btn" id="lastBtn" type="button" aria-label="Last step">↦</button>
+      <span class="step-count" id="stepCount">Step 1 / 1</span>
+      <div class="progress" role="progressbar" aria-label="Algorithm progress" aria-valuemin="1" aria-valuemax="1" aria-valuenow="1"><div id="progressFill"></div></div>
+    </section>
+
+    <div class="layout">
+      <aside class="card controls">
+        <div class="card-head"><h2>Model controls</h2><span>⚙</span></div>
+        <div class="card-body">
+          <div class="group-title">Pruning rule</div>
+          <div class="range-head"><label for="alphaInput">Distance threshold α</label><span class="range-value" id="alphaValue">1.20</span></div>
+          <input id="alphaInput" type="range" min="1" max="2" step="0.05" value="1.20" />
+          <p class="hint">Larger α shrinks the shaded prune region, so fewer candidates are removed and more directions survive.</p>
+
+          <div class="group-title">Degree & geometry</div>
+          <div class="field-grid">
+            <label for="distributionInput">Distribution</label>
+            <select id="distributionInput">
+              <option value="rings">Rings</option>
+              <option value="disk">Disk</option>
+              <option value="square">Square</option>
+              <option value="clusters">3 clusters</option>
+              <option value="spiral">Spiral</option>
+              <option value="line">Line</option>
+            </select>
+            <label for="degreeInput">Degree bound R</label><input id="degreeInput" type="number" min="1" max="12" value="6" />
+            <label for="countInput">Candidates</label><input id="countInput" type="number" min="6" value="20" />
+            <label for="rangeInput">Coordinate range ±</label><input id="rangeInput" type="number" min="0.1" step="0.5" value="1" />
+            <label for="seedInput">Random seed</label><input id="seedInput" type="number" min="1" max="999999" value="858" />
+          </div>
+          <div class="apply-row"><button class="btn primary" id="applyBtn" type="button">Apply</button><button class="btn" id="regenBtn" type="button">New geometry</button></div>
+
+          <div class="group-title">View</div>
+          <button class="btn" id="fitBtn" type="button">Fit all points</button>
+          <p class="hint">Drag empty space to pan. Use the mouse wheel or trackpad to zoom around the pointer.</p>
+
+          <div class="group-title">The test</div>
+          <div class="formula"><b>prune z</b> when<br />α · d(y, z) ≤ d(p, z)</div>
+          <p class="hint"><b>p</b> is the node whose outgoing edges are rebuilt; <b>y</b> is the nearest remaining candidate. The shaded region shows every location z that y can prune now.</p>
+          <div class="legend" aria-label="Point legend">
+            <div class="legend-item"><span class="swatch anchor"></span>anchor p</div>
+            <div class="legend-item"><span class="swatch candidate"></span>candidate</div>
+            <div class="legend-item"><span class="swatch kept"></span>kept neighbor</div>
+            <div class="legend-item"><span class="swatch pruned"></span>pruned</div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="card stage">
+        <div class="viewport" id="viewport">
+          <canvas id="canvas" role="img" aria-label="Interactive two-dimensional RobustPrune candidate set around anchor p"></canvas>
+          <div class="drag-help">drag space to pan · wheel to zoom · drag points to reshape</div>
+        </div>
+        <div class="narrative" aria-live="polite">
+          <div class="phase" id="phase">Initialize</div>
+          <h2 id="stepTitle">Merge candidates and clear the old list</h2>
+          <p id="stepText"></p>
+        </div>
+        <div class="stats">
+          <div class="stat"><b id="statKept">0 / 6</b><span>neighbors kept</span></div>
+          <div class="stat"><b id="statLive">20</b><span>candidates live</span></div>
+          <div class="stat"><b id="statPruned">0</b><span>candidates pruned</span></div>
+          <div class="stat"><b id="statComparisons">0</b><span>coverage tests</span></div>
+        </div>
+      </section>
+
+      <aside class="right">
+        <section class="card">
+          <div class="card-head"><h2>Candidate inspector</h2><span id="candidateStatus">candidate</span></div>
+          <div class="card-body candidate">
+            <div class="candidate-top"><div class="candidate-dot" id="candidateDot">c0</div><div><div class="candidate-name" id="candidateName">candidate c0</div><div class="candidate-distance" id="candidateDistance">d(p, c0) = 0.00</div></div></div>
+            <div class="equation">
+              <div class="operand"><b id="lhsValue">—</b><span>α · d(y, z)</span></div>
+              <div class="relation" id="relation">≤</div>
+              <div class="operand"><b id="rhsValue">—</b><span>d(p, z)</span></div>
+            </div>
+            <div class="decision" id="decision">Advance to a prune step to inspect the coverage test.</div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h2>Output Nout(p)</h2><span id="neighborCount">0 / 6</span></div>
+          <div class="card-body"><div class="neighbors" id="neighbors"></div></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h2>Decision trail</h2><span>click to jump</span></div>
+          <div class="card-body"><div class="trail" id="trail"></div></div>
+        </section>
+      </aside>
+    </div>
+  </main>
+  <script src="../assets/js/robustprune.js"></script>
+</body>
+</html>

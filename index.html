@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive visual explanations of PiPNN, HashPrune, RobustPrune, and randomized ball carving for approximate nearest-neighbor search.">
+  <meta name="theme-color" content="#f7f3ea">
+  <title>ANNS Visualizers</title>
+  <link rel="icon" href="assets/icons/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/index.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <div class="eyebrow">Approximate nearest-neighbor search</div>
+        <h1>ANNS Visualizers</h1>
+        <p class="lede">Interactive, step-by-step views of the geometric ideas behind PiPNN and graph-based nearest-neighbor indexes.</p>
+      </div>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch color theme">☾ Dark</button>
+    </header>
+
+    <section class="featured" aria-labelledby="start-title">
+      <div class="featured-copy">
+        <span class="tag">Start here</span>
+        <h2 id="start-title">Build the full PiPNN index</h2>
+        <p>Follow the complete construction pipeline from a point cloud through overlapping leaves, local candidate edges, HashPrune, and the final RobustPrune pass.</p>
+        <a class="button primary" href="visualizers/pipnn.html">Open PiPNN explorer <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="pipeline" aria-label="PiPNN construction stages">
+        <span>Points</span><i>→</i><span>Ball carving</span><i>→</i><span>Local k-NN</span><i>→</i><span>HashPrune</span><i>→</i><span>RobustPrune</span>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="explorers-title">
+      <div class="section-head">
+        <div><div class="eyebrow">Focused walkthroughs</div><h2 id="explorers-title">Explore each component</h2></div>
+        <p>Change parameters, advance one decision at a time, and inspect how the graph changes.</p>
+      </div>
+      <div class="card-grid">
+        <a class="card" href="visualizers/ball_carving.html">
+          <span class="number">01</span><span class="card-tag">Partition</span>
+          <h3>Randomized Ball Carving</h3>
+          <p>See leaders carve overlapping, cache-sized leaves from a point cloud.</p>
+          <span class="open">Open explorer →</span>
+        </a>
+        <a class="card" href="visualizers/hashprune_2d.html">
+          <span class="number">02</span><span class="card-tag">Prune · 2D</span>
+          <h3>HashPrune 2D</h3>
+          <p>Inspect residual directions, hash buckets, and retained candidate edges on a plane.</p>
+          <span class="open">Open explorer →</span>
+        </a>
+        <a class="card" href="visualizers/hashprune_3d.html">
+          <span class="number">03</span><span class="card-tag">Prune · 3D</span>
+          <h3>HashPrune 3D</h3>
+          <p>Rotate the scene and study directional coverage in three-dimensional space.</p>
+          <span class="open">Open explorer →</span>
+        </a>
+        <a class="card" href="visualizers/robustprune.html">
+          <span class="number">04</span><span class="card-tag">Graph geometry</span>
+          <h3>RobustPrune</h3>
+          <p>Watch redundant candidates disappear as nearby neighbors cover farther regions.</p>
+          <span class="open">Open explorer →</span>
+        </a>
+      </div>
+    </section>
+
+    <footer>
+      <span>ANNS algorithm visualizations</span>
+      <a href="https://github.com/" target="_blank" rel="noreferrer">Ready for GitHub Pages</a>
+    </footer>
+  </main>
+  <script src="assets/js/index.js"></script>
+</body>
+</html>

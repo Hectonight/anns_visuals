@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Explore how randomized ball carving partitions a point cloud into overlapping, cache-sized leaves.">
+  <title>Randomized Ball Carving — Interactive Walkthrough</title>
+  <link rel="icon" href="../assets/icons/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/css/shared.css">
+  <link rel="stylesheet" href="../assets/css/ball-carving.css">
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">PiPNN · algorithm 5</div>
+        <h1>Randomized Ball Carving</h1>
+        <div class="subtitle">Watch a point cloud become overlapping, cache-sized leaves. Leaders carve local balls; depth-dependent fanout lets each point follow more than one path.</div>
+      </div>
+      <div class="header-actions"><a class="home-link" href="../index.html" aria-label="Back to the visualizer home page">⌂ Home</a><button class="theme-toggle" id="themeToggle" type="button">☾ Dark</button><a class="paper-link" href="https://arxiv.org/html/2602.21247v3#S4.SS1" target="_blank" rel="noreferrer">Read §4.1 ↗</a></div>
+    </header>
+
+    <section class="toolbar" aria-label="Playback controls">
+      <button class="btn" id="firstBtn" title="First step">↤</button>
+      <button class="btn" id="prevBtn">← Back</button>
+      <button class="btn primary" id="playBtn">▶ Play</button>
+      <button class="btn" id="nextBtn">Next →</button>
+      <button class="btn" id="lastBtn" title="Last step">↦</button>
+      <span class="step-count" id="stepCount">Step 1 / 1</span>
+      <div class="progress"><div id="progressFill"></div></div>
+      <label class="speed">Speed <input id="speed" type="range" min="250" max="1800" step="50" value="850" /></label>
+    </section>
+
+    <div class="layout">
+      <aside class="card params">
+        <div class="card-head"><h2>Parameters</h2><span title="Settings rebuild the walkthrough">⚙</span></div>
+        <div class="card-body">
+          <div class="param-grid">
+            <label for="nodeCount">Points n</label><input id="nodeCount" type="number" min="20" max="500" value="120" />
+            <label for="distribution">Data shape</label><select id="distribution"><option value="mixture">Gaussian mixture</option><option value="uniform">Uniform</option><option value="rings">Rings</option><option value="moons">Two moons</option></select>
+            <label for="seed">Random seed</label><input id="seed" type="number" min="1" max="999999" value="858" />
+          </div>
+
+          <div class="group-title">Ball carving</div>
+          <div class="param-grid">
+            <label for="leaderFraction">Leader fraction P<sub>samp</sub></label><input id="leaderFraction" type="number" min="0.01" max="0.8" step="0.01" value="0.08" />
+            <label for="leaderCap">Leader cap</label><input id="leaderCap" type="number" min="2" max="1000" value="1000" />
+            <label for="cmax">Max leaf size C<sub>max</sub></label><input id="cmax" type="number" min="3" max="200" value="28" />
+            <label for="cmin">Min leaf size C<sub>min</sub></label><input id="cmin" type="number" min="1" max="100" value="9" />
+          </div>
+
+          <div class="group-title">Fanout f(depth)</div>
+          <div class="fanout-grid">
+            <label>d = 0<input id="f0" type="number" min="1" max="20" value="3" /></label>
+            <label>d = 1<input id="f1" type="number" min="1" max="20" value="2" /></label>
+            <label>d = 2<input id="f2" type="number" min="1" max="20" value="1" /></label>
+            <label>d ≥ 3<input id="f3" type="number" min="1" max="20" value="1" /></label>
+          </div>
+          <p class="hint">Fanout is the number of nearest leaders each point joins. Values above 1 create overlap. The paper suggests a decreasing schedule such as 10, then 3 at scale.</p>
+
+          <div class="apply-row">
+            <button class="btn primary" id="applyBtn">Apply settings</button>
+            <button class="btn accent" id="regenBtn">New data</button>
+          </div>
+          <div class="warning" id="warning"></div>
+
+          <details>
+            <summary>Legend & interaction</summary>
+            <div class="legend">
+              <span class="swatch" style="background:#e86f51"></span><span>Selected leader</span>
+              <span class="swatch" style="background:#2d765d"></span><span>Point in active subproblem</span>
+              <span class="swatch" style="background:#c9c5b9"></span><span>Point outside active subproblem</span>
+              <span class="swatch" style="background:#d39a32"></span><span>Finished leaf</span>
+            </div>
+            <p class="hint">Hover a point to inspect its ID and memberships. Click a tree node to jump to its latest step.</p>
+          </details>
+        </div>
+      </aside>
+
+      <section class="card stage">
+        <div class="viz-wrap" id="vizWrap">
+          <canvas id="canvas"></canvas>
+          <div class="viz-badge" id="depthBadge">Depth 0 · root</div>
+          <div class="viz-help">Hover points · links show leader assignments</div>
+        </div>
+        <div class="narrative">
+          <div class="phase" id="phase">Initialize</div>
+          <h2 id="stepTitle">Generate the point cloud</h2>
+          <p id="stepText"></p>
+        </div>
+        <div class="metrics">
+          <div class="metric"><b id="mActive">0</b><span>active points</span></div>
+          <div class="metric"><b id="mLeaders">0</b><span>leaders</span></div>
+          <div class="metric"><b id="mLeaves">0</b><span>finished leaves</span></div>
+          <div class="metric"><b id="mReplica">1.00×</b><span>membership load</span></div>
+        </div>
+      </section>
+
+      <aside class="side-stack">
+        <section class="card">
+          <div class="card-head"><h2>Algorithm 5</h2><span id="lineBadge">line 1</span></div>
+          <div class="card-body">
+            <ol class="pseudo" id="pseudo">
+              <li data-line="base">if |P| ≤ Cmax: return {P}</li>
+              <li data-line="leaders">L ← SampleLeaders(P, Psamp·|P|)</li>
+              <li data-line="fanout">local_fanout ← f(depth)</li>
+              <li data-line="assign">for x ∈ P: assign x to nearest leaders</li>
+              <li data-line="merge">Merge(B, Cmin, Cmax)</li>
+              <li data-line="recurse">recurse on b where |b| ≥ Cmax</li>
+              <li data-line="return">return B</li>
+            </ol>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h2>Recursion tree</h2><span id="treeStat">1 node</span></div>
+          <div class="tree-wrap"><svg id="tree" aria-label="Recursion tree"></svg></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h2>Event trail</h2><span>click to jump</span></div>
+          <div class="card-body event-log" id="eventLog"></div>
+        </section>
+      </aside>
+    </div>
+  </main>
+  <script src="../assets/js/ball-carving.js"></script>
+</body>
+</html>
