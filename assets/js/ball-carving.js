@@ -196,6 +196,17 @@
       return map;
     }
 
+    function drawMembershipRing(q, membership) {
+      if (!membership.length) return;
+      const colors=palette(), count=membership.length, gap=.11;
+      membership.forEach((clusterIndex,i)=>{
+        const start=-Math.PI/2+i*Math.PI*2/count+gap;
+        const end=-Math.PI/2+(i+1)*Math.PI*2/count-gap;
+        ctx.beginPath(); ctx.strokeStyle=colors[clusterIndex%colors.length]; ctx.lineWidth=3.5;
+        ctx.arc(q.x,q.y,11,start,end); ctx.stroke();
+      });
+    }
+
     function renderCanvas() {
       if (!snapshots.length || !canvas.width) return;
       const s=snapshots[step], w=canvas.width/dpr, h=canvas.height/dpr;
@@ -215,16 +226,14 @@
 
       for (const p of points) {
         const q=toScreen(p), membership=cmap.get(p.id)||[];
-        if (membership.length>1) {
-          const colors=palette(); membership.slice(0,4).forEach((ci,j)=>{ ctx.beginPath(); ctx.strokeStyle=colors[ci%colors.length]; ctx.lineWidth=2; ctx.arc(q.x,q.y,7+j*2,0,Math.PI*2); ctx.stroke(); });
-        }
         ctx.beginPath();
-        const radius=leaders.has(p.id)?7.2:(hoverPoint===p.id?6.2:4.1);
+        const radius=leaders.has(p.id)?7.2:(hoverPoint===p.id?6.2:5.2);
         ctx.arc(q.x,q.y,radius,0,Math.PI*2);
         if (leaders.has(p.id)) ctx.fillStyle="#e86f51";
-        else if (active.has(p.id)) { const colors=palette(); ctx.fillStyle=membership.length?colors[membership[0]%colors.length]:(isDark()?"#57d4d0":"#2d765d"); }
+        else if (active.has(p.id)) ctx.fillStyle=isDark()?"#f5b85a":"#d39a32";
         else ctx.fillStyle=isDark()?"#52616b":"#cbc7bc";
-        ctx.fill(); ctx.strokeStyle=isDark()?"#0d151b":"#fffdf8"; ctx.lineWidth=leaders.has(p.id)?2:1; ctx.stroke();
+        ctx.fill(); ctx.strokeStyle=hoverPoint===p.id?(isDark()?"#eef3f5":"#15211d"):(isDark()?"#0d151b":"#fffdf8"); ctx.lineWidth=hoverPoint===p.id?2.5:(leaders.has(p.id)?2:1); ctx.stroke();
+        if (active.has(p.id)) drawMembershipRing(q,membership);
       }
 
       if (hoverPoint!==null) {

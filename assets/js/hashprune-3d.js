@@ -4,7 +4,7 @@
     const DARK_PLANE_COLORS=[[87,212,208],[245,184,90],[175,145,244],[240,120,127],[116,217,159],[98,157,224],[235,133,207],[164,201,92]],LIGHT_PLANE_COLORS=[[45,118,93],[211,154,50],[84,122,165],[232,111,81],[155,107,170],[75,156,162],[184,93,113],[122,143,67]];
     const DARK_BUCKET_COLORS=["#57d4d0","#f5b85a","#af91f4","#f0787f","#74d99f","#629de0","#eb85cf","#a4c95c","#e99b60","#73c0ea","#c88bf0","#e27970"],LIGHT_BUCKET_COLORS=["#2d765d","#d39a32","#547aa5","#e86f51","#9b6baa","#4b9ca2","#b85d71","#7a8f43","#8a6b4b","#6178b8","#c6573e","#397d83"];
     const isDark=()=>document.documentElement.dataset.theme==="dark";
-    let params={}, target={x:0,y:0,z:0}, candidates=[], normals=[], steps=[], step=0, selected=0, timer=null;
+    let params={}, target={x:0,y:0,z:0}, candidates=[], normals=[], steps=[], step=0, selected=null, timer=null;
     let camera={yaw:-.55,pitch:.32,zoom:1}, drag=null, projected=[], dpr=1, spinFrame=null;
 
     function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
@@ -36,7 +36,7 @@
         const r=.38+Math.pow(rng(),.68)*1.3;
         candidates.push({id:i,x:dir.x*r,y:dir.y*r,z:dir.z*r,distance:r,action:null});
       }
-      selected=0; buildSteps(); renderTrail(); render();
+      selected=null; buildSteps(); renderTrail(); render();
     }
 
     function computeReservoir(upto){
@@ -44,13 +44,13 @@
       for(let i=0;i<=upto && i<candidates.length;i++){
         const c=candidates[i], hash=signature(c), existing=map.get(hash); let action;
         if(existing){
-          if(c.distance<existing.distance){map.set(hash,c);action={kind:"replace",text:`c${i} collides with c${existing.id} in ${hash}; the nearer c${i} replaces it.`};}
-          else action={kind:"reject",text:`c${i} collides with c${existing.id} in ${hash}; the nearer c${existing.id} stays.`};
+          if(c.distance<existing.distance){map.set(hash,c);action={kind:"replace",removedId:existing.id,text:`c${i} collides with c${existing.id} in ${hash}; the nearer c${i} replaces it.`};}
+          else action={kind:"reject",rejectedId:c.id,text:`c${i} collides with c${existing.id} in ${hash}; the nearer c${existing.id} stays.`};
         }else if(map.size<params.cap){map.set(hash,c);action={kind:"insert",text:`Bucket ${hash} is new and the reservoir has room, so c${i} is inserted.`};}
         else{
           const farthest=[...map.entries()].sort((a,b)=>b[1].distance-a[1].distance)[0];
-          if(c.distance<farthest[1].distance){map.delete(farthest[0]);map.set(hash,c);action={kind:"evict",text:`Reservoir full: c${i} is nearer than farthest c${farthest[1].id}, so c${farthest[1].id} is evicted.`};}
-          else action={kind:"reject",text:`Reservoir full: c${i} is farther than c${farthest[1].id}, the current farthest entry, so it is rejected.`};
+          if(c.distance<farthest[1].distance){map.delete(farthest[0]);map.set(hash,c);action={kind:"evict",removedId:farthest[1].id,text:`Reservoir full: c${i} is nearer than farthest c${farthest[1].id}, so c${farthest[1].id} is evicted.`};}
+          else action={kind:"reject",rejectedId:c.id,text:`Reservoir full: c${i} is farther than c${farthest[1].id}, the current farthest entry, so it is rejected.`};
         }
         actions.push(action);
       }
@@ -109,6 +109,18 @@
       }
     }
 
+    function candidateStatus(id,reservoir,streamIndex){
+      if(streamIndex<id)return"pending";
+      if([...reservoir.map.values()].some(c=>c.id===id))return"retained";
+      if(reservoir.actions.slice(id+1).some(a=>a.removedId===id))return"evicted";
+      return"rejected";
+    }
+
+    function drawCross(q,radius){
+      const size=radius+3;ctx.save();ctx.strokeStyle=isDark()?"#ff8d92":"#d94f3d";ctx.lineWidth=2.5;ctx.lineCap="round";
+      ctx.beginPath();ctx.moveTo(q.x-size,q.y-size);ctx.lineTo(q.x+size,q.y+size);ctx.moveTo(q.x+size,q.y-size);ctx.lineTo(q.x-size,q.y+size);ctx.stroke();ctx.restore();
+    }
+
     function draw(){
       if(!steps.length||!canvas.width)return; const {s,reservoir}=state(),w=canvas.width/dpr,h=canvas.height/dpr;
       ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);drawGrid();
@@ -132,12 +144,15 @@
       }
       const marks=candidates.map(c=>({c,q:project(c)})).sort((a,b)=>a.q.z-b.q.z);projected=[];
       for(const {c,q} of marks){
-        const hash=signature(c,s.bits), current=c.id===streamIndex, inspected=c.id===selected, processed=streamIndex>=0&&c.id<=streamIndex;
-        const radius=current?8:inspected?7:processed&&keptIds.has(c.id)?6:4.5;
+        const hash=signature(c,s.bits), current=c.id===streamIndex, inspected=c.id===selected, processed=streamIndex>=0&&c.id<=streamIndex, retained=processed&&keptIds.has(c.id), removed=processed&&!retained;
+        const radius=current?8:inspected?7:retained?6:4.5;
         ctx.beginPath();ctx.arc(q.x,q.y,radius,0,Math.PI*2);
-        ctx.fillStyle=current?(isDark()?"#f5b85a":"#e86f51"):colorForHash(hash||"0");ctx.globalAlpha=streamIndex>=0&&!processed?.24:1;ctx.fill();ctx.globalAlpha=1;
-        ctx.strokeStyle=inspected?(isDark()?"#ffffff":"#15211d"):processed&&keptIds.has(c.id)?(isDark()?"#74d99f":"#45976f"):(isDark()?"#0a1116":"#fffdf8");ctx.lineWidth=inspected?2.3:processed&&keptIds.has(c.id)?2:1.2;ctx.stroke();
-        if(showLabels&&(current||inspected||params.count<=18)){ctx.fillStyle=isDark()?"#dce5e9":"#39443f";ctx.font="700 10px Inter, sans-serif";ctx.fillText(`c${c.id}`,q.x+7,q.y-7);}
+        ctx.fillStyle=current?(isDark()?"#f5b85a":"#e86f51"):colorForHash(hash||"0");ctx.globalAlpha=streamIndex>=0&&!processed?.24:removed&&!current?.38:1;ctx.fill();ctx.globalAlpha=1;
+        ctx.strokeStyle=isDark()?"#0a1116":"#fffdf8";ctx.lineWidth=1.2;ctx.stroke();
+        if(retained){ctx.beginPath();ctx.arc(q.x,q.y,radius+4,0,Math.PI*2);ctx.strokeStyle=isDark()?"#74d99f":"#2d765d";ctx.lineWidth=3;ctx.globalAlpha=.98;ctx.stroke();ctx.globalAlpha=1;}
+        if(removed)drawCross(q,radius);
+        if(inspected){ctx.beginPath();ctx.arc(q.x,q.y,radius+8,0,Math.PI*2);ctx.strokeStyle=isDark()?"#ffffff":"#15211d";ctx.lineWidth=2;ctx.stroke();}
+        if(showLabels&&(current||inspected||retained||params.count<=18)){ctx.fillStyle=isDark()?"#dce5e9":"#39443f";ctx.font="700 10px Inter, sans-serif";ctx.fillText(`c${c.id}`,q.x+9,q.y-9);}
         projected.push({id:c.id,x:q.x,y:q.y});
       }
       ctx.beginPath();ctx.arc(p0.x,p0.y,9,0,Math.PI*2);ctx.fillStyle=isDark()?"#eef3f5":"#fffdf8";ctx.fill();ctx.strokeStyle=isDark()?"#57d4d0":"#194f3c";ctx.lineWidth=3;ctx.stroke();
@@ -145,17 +160,18 @@
     }
 
     function renderInspector(st){
+      if(selected===null){$("candidateDot").textContent="—";$("candidateDot").style.background="var(--surface-3)";$("candidateName").textContent="no candidate selected";$("candidateDistance").textContent="Click a point to inspect it";$("bitStrip").innerHTML="";$("decision").className="decision";$("decision").textContent="The graph is unfiltered. Select a candidate only when you want its individual hash decision.";$("candidateStatus").textContent="none";return;}
       const c=candidates[selected], full=signature(c), revealed=st.s.bits;
       $("candidateDot").textContent=`c${c.id}`;$("candidateDot").style.background=colorForHash(full);$("candidateName").textContent=`candidate c${c.id}`;
       $("candidateDistance").textContent=`‖c − p‖ = ${c.distance.toFixed(3)}`;
       $("bitStrip").innerHTML=[...full].map((b,i)=>`<span class="bit ${i>=revealed?"pending":b==="1"?"one":"zero"}">${i>=revealed?"·":b}</span>`).join("");
       let text="Reveal the hyperplanes to build this candidate’s signature.", cls="decision";
       if(st.s.stream>=0){
-        if(selected<=st.s.stream){const r=computeReservoir(selected),a=r.action;text=a.text;cls+=a.kind==="reject"?" bad":" good";}
+        if(selected<=st.s.stream){const status=candidateStatus(selected,st.reservoir,st.s.stream);if(status==="evicted"){const removalIndex=st.reservoir.actions.findIndex((a,i)=>i>selected&&a.removedId===selected),a=st.reservoir.actions[removalIndex];text=`c${selected} was retained, but was later evicted when c${removalIndex} arrived. ${a.text}`;cls+=" bad";}else{const r=computeReservoir(selected),a=r.action;text=a.text;cls+=status==="rejected"?" bad":" good";}}
         else text=`c${selected} has not entered the stream yet.`;
       }else if(revealed===params.bits)text=`Full signature ${full}. ${st.groups.get(full).length} candidate${st.groups.get(full).length===1?"":"s"} occupy this directional bucket.`;
       $("decision").className=cls;$("decision").textContent=text;
-      $("candidateStatus").textContent=st.s.stream>=0&&selected<=st.s.stream?(st.reservoir.map.get(full)?.id===selected?"kept":"not kept"):"selected";
+      $("candidateStatus").textContent=st.s.stream>=0?candidateStatus(selected,st.reservoir,st.s.stream):"selected";
     }
 
     function renderReservoir(st){
@@ -183,7 +199,6 @@
       $("statBits").textContent=`${s.bits} / ${params.bits}`;$("statBuckets").textContent=st.groups.size;$("statCollisions").textContent=collisions;$("statKept").textContent=`${st.reservoir.map.size} / ${params.cap}`;
       $("firstBtn").disabled=$("prevBtn").disabled=step===0;$("lastBtn").disabled=$("nextBtn").disabled=step===steps.length-1;
       document.querySelectorAll(".event").forEach((e,i)=>e.classList.toggle("active",i===step));
-      if(s.stream>=0)selected=s.stream;
       renderInspector(st);renderReservoir(st);renderBuckets(st);draw();
     }
 
@@ -203,8 +218,8 @@
     function animateSpin(){if(!$("spinCheck").checked)return;camera.yaw+=.0025;draw();spinFrame=requestAnimationFrame(animateSpin);}
     canvas.addEventListener("pointerdown",e=>{drag={x:e.clientX,y:e.clientY,yaw:camera.yaw,pitch:camera.pitch,moved:false};canvas.setPointerCapture(e.pointerId);});
     canvas.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;camera.yaw=drag.yaw+dx*.009;camera.pitch=clamp(drag.pitch+dy*.009,-1.35,1.35);draw();});
-    canvas.addEventListener("pointerup",e=>{if(drag&&!drag.moved){const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;let best=null,bestD=180;for(const p of projected){const d=(p.x-x)**2+(p.y-y)**2;if(d<bestD){bestD=d;best=p.id;}}if(best!==null){selected=best;renderInspector(state());draw();}}drag=null;});
+    canvas.addEventListener("pointerup",e=>{if(drag&&!drag.moved){const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;let best=null,bestD=180;for(const p of projected){const d=(p.x-x)**2+(p.y-y)**2;if(d<bestD){bestD=d;best=p.id;}}selected=best;renderInspector(state());draw();}drag=null;});
     canvas.addEventListener("wheel",e=>{e.preventDefault();camera.zoom=clamp(camera.zoom*Math.exp(-e.deltaY*.001),.58,2.1);draw();},{passive:false});
-    window.addEventListener("resize",resize);window.addEventListener("keydown",e=>{if(e.key==="ArrowRight")jump(step+1);if(e.key==="ArrowLeft")jump(step-1);if(e.key===" "){e.preventDefault();play();}});
+    window.addEventListener("resize",resize);window.addEventListener("keydown",e=>{if(e.key==="Escape"){selected=null;renderInspector(state());draw();}if(e.key==="ArrowRight")jump(step+1);if(e.key==="ArrowLeft")jump(step-1);if(e.key===" "){e.preventDefault();play();}});
     $("themeToggle").addEventListener("click",()=>{const dark=!isDark();document.documentElement.dataset.theme=dark?"dark":"light";$("themeToggle").textContent=dark?"☀ Light":"☾ Dark";renderInspector(state());draw();});
     params=readParams();generate();requestAnimationFrame(resize);

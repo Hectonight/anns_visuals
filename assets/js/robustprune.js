@@ -93,7 +93,7 @@
           }
           points.push({ id: i, x, y, old: i < Math.min(4, count) });
         }
-        selectedId = 0;
+        selectedId = null;
         needsFit = true;
         if (view.width > 1 && view.height > 1) resetView();
         rebuild(0);
@@ -321,7 +321,17 @@
 
       function updateInspector() {
         const step = steps[stepIndex];
-        if (selectedId === null || !pointById(selectedId)) selectedId = points[0].id;
+        if (selectedId === null || !pointById(selectedId)) {
+          els.candidateStatus.textContent = 'none';
+          els.candidateDot.textContent = '—';
+          els.candidateDot.style.background = 'var(--surface-2)';
+          els.candidateName.textContent = 'no candidate selected';
+          els.candidateDistance.textContent = 'Click a point to inspect it';
+          els.lhs.textContent = '—'; els.rhs.textContent = '—'; els.relation.textContent = '≤';
+          els.decision.className = 'decision';
+          els.decision.textContent = 'Showing the entire candidate set. Select a point only when you want its coverage test.';
+          return;
+        }
         const z = pointById(selectedId);
         const status = statusOf(selectedId, step);
         els.candidateStatus.textContent = status;
@@ -447,8 +457,10 @@
       canvas.addEventListener('pointerup', event => {
         canvas.releasePointerCapture(event.pointerId);
         const reshaped = draggingId !== null && moved;
+        const cleared = panning && !moved;
         draggingId = null; panning = false; lastPointer = null;
         if (reshaped) rebuild(stepIndex);
+        else if (cleared) { selectedId = null; renderAll(); }
       });
       canvas.addEventListener('pointercancel', () => { draggingId = null; panning = false; lastPointer = null; });
       canvas.addEventListener('wheel', event => {
@@ -480,6 +492,7 @@
       });
       window.addEventListener('keydown', event => {
         if (event.target.matches('input, button')) return;
+        if (event.key === 'Escape') { selectedId = null; renderAll(); }
         if (event.key === 'ArrowRight') goTo(stepIndex + 1);
         if (event.key === 'ArrowLeft') goTo(stepIndex - 1);
         if (event.key === ' ') { event.preventDefault(); togglePlay(); }
